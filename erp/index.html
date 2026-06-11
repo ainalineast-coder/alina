@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Тёплый дом — ERP сети домов престарелых</title>
+<style>
+  :root {
+    --bg:#0e1116; --panel:#161b22; --panel2:#1c232d; --line:#2a323d;
+    --text:#e6edf3; --muted:#8b97a7; --accent:#4aa3ff; --ok:#22c55e;
+    --warn:#eab308; --bad:#ef4444; --violet:#a78bfa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 -apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+  header{display:flex;align-items:center;gap:16px;padding:12px 22px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;flex-wrap:wrap}
+  header h1{font-size:17px;margin:0;font-weight:650}
+  header .sub{color:var(--muted);font-size:12px}
+  .spacer{flex:1}
+  nav a{padding:6px 12px;border-radius:8px;color:var(--text);font-weight:550}
+  nav a.active{background:var(--panel2);color:var(--accent)}
+  main{padding:18px 22px;max-width:1280px;margin:0 auto}
+  h2{font-size:18px;margin:6px 0 14px} h3{font-size:15px;margin:18px 0 10px}
+  .crumbs{color:var(--muted);font-size:13px;margin-bottom:10px}
+  .grid{display:grid;gap:14px}
+  .cols3{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+  .cols4{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .card.click{cursor:pointer;transition:border-color .15s} .card.click:hover{border-color:var(--accent)}
+  .kpis{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 18px;min-width:130px}
+  .kpi b{display:block;font-size:22px;line-height:1.2}
+  .kpi span{color:var(--muted);font-size:12px}
+  .kpi.good b{color:var(--ok)} .kpi.bad b{color:var(--bad)} .kpi.warn b{color:var(--warn)}
+  .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);color:var(--muted);margin:1px 2px}
+  .tag.ok{color:var(--ok)} .tag.bad{color:#fff;background:var(--bad);border-color:var(--bad)}
+  .tag.warn{color:var(--warn);border-color:var(--warn)} .tag.violet{color:var(--violet)}
+  .bar{height:7px;border-radius:4px;background:var(--panel2);overflow:hidden;margin-top:6px}
+  .bar>i{display:block;height:100%;background:var(--accent)}
+  .bar.green>i{background:var(--ok)} .bar.red>i{background:var(--bad)} .bar.yellow>i{background:var(--warn)}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{color:var(--muted);text-align:left;font-weight:550;font-size:12px;border-bottom:1px solid var(--line);padding:7px 10px}
+  td{padding:8px 10px;border-bottom:1px solid var(--line)}
+  tr.click{cursor:pointer} tr.click:hover td{background:var(--panel2)}
+  .right{text-align:right} .muted{color:var(--muted)} .bad-t{color:var(--bad)} .ok-t{color:var(--ok)}
+  button,.btn{font:inherit;font-size:13px;padding:7px 14px;border-radius:8px;cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--text)}
+  button:hover,.btn:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#06121f;font-weight:600}
+  button.danger{border-color:var(--bad);color:var(--bad)}
+  button.small{padding:3px 9px;font-size:12px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0 14px}
+  .toolbar input[type=search]{flex:1;min-width:180px}
+  input,select,textarea{font:inherit;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:7px 10px;outline:none}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+  .tabs{display:flex;gap:6px;margin:12px 0;flex-wrap:wrap}
+  .tabs a{padding:7px 14px;border-radius:8px;background:var(--panel);border:1px solid var(--line);color:var(--text);font-size:13px}
+  .tabs a.active{border-color:var(--accent);color:var(--accent)}
+  .beds{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+  .room{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .room .rn{font-weight:600;margin-bottom:6px}
+  .bed{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:7px;margin:3px 0;background:var(--panel2);font-size:12.5px}
+  .bed .dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .bed.free .dot{background:var(--ok)} .bed.busy .dot{background:var(--accent)}
+  .bed.free{color:var(--muted)} .bed a{color:var(--text)}
+  .demo-note{background:#1e2733;border:1px solid var(--line);border-radius:10px;padding:8px 14px;color:var(--muted);font-size:12.5px;margin-bottom:14px}
+  /* модальное окно */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-start;justify-content:center;z-index:50;padding:40px 14px;overflow:auto}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;width:100%;max-width:520px}
+  .modal h3{margin:0 0 14px}
+  .modal .frow{margin-bottom:10px}
+  .modal label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+  .modal input,.modal select,.modal textarea{width:100%}
+  .modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+  .chk{display:flex;align-items:center;gap:8px} .chk input{width:auto}
+  pre.yaml{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:12px;overflow:auto;max-height:50vh;white-space:pre-wrap}
+  @media (max-width:700px){ main{padding:12px} header{padding:10px 12px} }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1 id="brand">Тёплый дом · ERP</h1>
+    <div class="sub">Учёт постояльцев сети домов престарелых</div>
+  </div>
+  <div class="spacer"></div>
+  <nav id="nav">
+    <a href="#/" data-r="net">Сеть</a>
+    <a href="#/reports" data-r="reports">Отчёты</a>
+    <a href="#/data" data-r="data">Данные</a>
+    <a href="../" title="Пост дежурной — мониторинг RuView">Мониторинг</a>
+  </nav>
+</header>
+<main id="view"></main>
+<div id="modal-root"></div>
+<script src="store.js"></script>
+<script src="seed.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
