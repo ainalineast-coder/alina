@@ -118,6 +118,7 @@
   </div>
   <div class="spacer"></div>
   <div class="stats" id="stats"></div>
+  <button class="pill" id="sndbtn" onclick="toggleSound()" title="Звуковая сигнализация при критических тревогах">🔔</button>
   <span class="pill" id="nightpill">—</span>
   <span class="pill conn" id="conn">подключение…</span>
 </header>
@@ -141,6 +142,58 @@
 let STATE = null;
 let MODE = "init"; // live | demo | down
 const CONN = document.getElementById("conn");
+
+// ─── Звуковая сигнализация ─────────────────────────────────────────
+// Критическая тревога: сирена каждые 4 с, пока тревогу не «Приняли».
+// Высокая: короткий двойной сигнал при появлении.
+// Браузер разрешает звук только после первого клика по странице.
+let soundOn = localStorage.getItem("pansion_sound") !== "off";
+let audioCtx = null;
+const seenAlerts = new Set();
+function ensureAudio(){
+  if(!audioCtx){ try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+  if(audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+}
+function beep(freq, t0, dur){
+  if(!audioCtx || audioCtx.state !== "running") return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = "sine"; o.frequency.value = freq;
+  o.connect(g); g.connect(audioCtx.destination);
+  const t = audioCtx.currentTime + (t0||0);
+  g.gain.setValueAtTime(0.20, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.start(t); o.stop(t + dur + 0.05);
+}
+function criticalSiren(){ beep(880,0,0.22); beep(660,0.28,0.22); beep(880,0.56,0.22); }
+function highChime(){ beep(740,0,0.15); beep(740,0.22,0.15); }
+function updateSoundBtn(){
+  const b = document.getElementById("sndbtn");
+  if(b) b.textContent = soundOn ? "🔔 звук вкл" : "🔕 звук выкл";
+}
+function toggleSound(){
+  soundOn = !soundOn;
+  localStorage.setItem("pansion_sound", soundOn ? "on" : "off");
+  ensureAudio(); updateSoundBtn();
+  if(soundOn) highChime(); // подтверждение, что звук работает
+}
+window.toggleSound = toggleSound;
+document.addEventListener("click", ()=>{ if(soundOn) ensureAudio(); });
+setInterval(()=>{ // сирена, пока висит неподтверждённая критическая тревога
+  if(!soundOn || !STATE) return;
+  if(STATE.alerts.some(a => a.status === "open" && a.priority >= 4)){
+    ensureAudio(); criticalSiren();
+  }
+}, 4000);
+function announceNew(){ // разовый сигнал по новым тревогам
+  if(!STATE) return;
+  for(const a of STATE.alerts){
+    if(seenAlerts.has(a.id)) continue;
+    seenAlerts.add(a.id);
+    if(!soundOn) continue;
+    if(a.priority >= 4){ ensureAudio(); criticalSiren(); }
+    else if(a.priority === 3){ ensureAudio(); highChime(); }
+  }
+}
 
 function priClass(p){ return "p"+p; }
 function fmtTime(ts){ if(!ts) return "—"; const d=new Date(ts*1000);
@@ -167,6 +220,7 @@ function render(){
   renderRooms();
   renderAlerts();
   renderLog();
+  announceNew();
 }
 function stat(v,l,c){ return `<div class="stat ${c}"><b>${v}</b><span>${l}</span></div>`; }
 
@@ -405,6 +459,7 @@ const DEMO = (function(){
 })();
 function startDemo(){ setConn("demo"); DEMO.start(); }
 
+updateSoundBtn();
 connect();
 </script>
 </body>
