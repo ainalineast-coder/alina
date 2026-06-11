@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Пансион — пост дежурной</title>
+<style>
+  :root {
+    --bg: #0e1116; --panel: #161b22; --panel2: #1c232d; --line: #2a323d;
+    --text: #e6edf3; --muted: #8b97a7; --accent: #4aa3ff;
+    --info: #3b82f6; --low: #14b8a6; --medium: #eab308;
+    --high: #f97316; --critical: #ef4444; --ok: #22c55e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: 18px; padding: 12px 20px;
+    background: var(--panel); border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 10;
+  }
+  header h1 { font-size: 18px; margin: 0; font-weight: 650; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  .spacer { flex: 1; }
+  .pill {
+    padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    background: var(--panel2); border: 1px solid var(--line); white-space: nowrap;
+  }
+  .pill.night { background: #1e293b; color: #c4b5fd; border-color: #4c3f7a; }
+  .pill.day { color: #fcd34d; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .dot.on { background: var(--ok); } .dot.off { background: var(--critical); }
+
+  .stats { display: flex; gap: 10px; }
+  .stat { text-align: center; min-width: 64px; }
+  .stat b { display: block; font-size: 20px; line-height: 1.1; }
+  .stat span { color: var(--muted); font-size: 11px; }
+  .stat.crit b { color: var(--critical); } .stat.high b { color: var(--high); }
+
+  main { display: grid; grid-template-columns: 1fr 380px; gap: 16px; padding: 16px 20px; }
+  @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+  section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--muted); margin: 0 0 10px; }
+
+  .rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  .room {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 14px; position: relative; transition: border-color .2s, box-shadow .2s;
+  }
+  .room.alert-critical { border-color: var(--critical); box-shadow: 0 0 0 1px var(--critical), 0 0 18px -6px var(--critical); animation: pulse 1.6s infinite; }
+  .room.alert-high { border-color: var(--high); box-shadow: 0 0 0 1px var(--high); }
+  .room.alert-medium { border-color: var(--medium); }
+  .room.offline { opacity: .55; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 1px var(--critical), 0 0 16px -8px var(--critical);} 50% { box-shadow: 0 0 0 1px var(--critical), 0 0 26px -2px var(--critical);} }
+  .room .rtop { display: flex; justify-content: space-between; align-items: baseline; }
+  .room .rname { font-weight: 650; font-size: 15px; }
+  .room .wing { color: var(--muted); font-size: 11px; }
+  .room .resident { margin: 6px 0 2px; }
+  .room .care { font-size: 11px; color: var(--muted); }
+  .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; min-height: 22px; }
+  .tag { font-size: 11px; padding: 2px 7px; border-radius: 6px; background: var(--panel2); border: 1px solid var(--line); color: var(--muted); }
+  .tag.act { color: var(--ok); border-color: #2c5; }
+  .tag.sleep { color: #93c5fd; }
+  .tag.bath { color: #5eead4; }
+  .tag.warn { color: var(--high); border-color: var(--high); }
+  .tag.danger { color: #fff; background: var(--critical); border-color: var(--critical); }
+  .room .badges { position: absolute; top: 10px; right: 12px; display: flex; gap: 4px; }
+  .badge { font-size: 10px; padding: 1px 5px; border-radius: 5px; background: #3a2a12; color: #fbbf24; }
+  .badge.dem { background: #2a1f3a; color: #c4b5fd; }
+  .badge.bed { background: #3a1f1f; color: #fca5a5; }
+  .risk { margin-top: 8px; }
+  .risk .bar { height: 6px; border-radius: 4px; background: var(--panel2); overflow: hidden; }
+  .risk .bar > i { display: block; height: 100%; background: linear-gradient(90deg,#22c55e,#eab308,#ef4444); }
+  .risk small { color: var(--muted); font-size: 11px; }
+
+  .alerts { display: flex; flex-direction: column; gap: 10px; max-height: 78vh; overflow: auto; }
+  .alert { border-radius: 10px; padding: 10px 12px; border-left: 4px solid var(--line); background: var(--panel); }
+  .alert.p4 { border-left-color: var(--critical); }
+  .alert.p3 { border-left-color: var(--high); }
+  .alert.p2 { border-left-color: var(--medium); }
+  .alert.p1 { border-left-color: var(--low); }
+  .alert.p0 { border-left-color: var(--info); }
+  .alert.ack { opacity: .7; }
+  .alert .atop { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .alert .atitle { font-weight: 650; }
+  .alert .plabel { font-size: 11px; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
+  .p4 .plabel { background: var(--critical); color:#fff; } .p3 .plabel { background: var(--high); color:#fff; }
+  .p2 .plabel { background: var(--medium); color:#000; } .p1 .plabel { background: var(--low); color:#000; }
+  .p0 .plabel { background: var(--info); color:#fff; }
+  .alert .ameta { color: var(--muted); font-size: 12px; margin: 3px 0; }
+  .alert .amsg { font-size: 13px; }
+  .alert .expl { color: var(--muted); font-size: 11px; margin-top: 4px; font-style: italic; }
+  .alert .actions { display: flex; gap: 8px; margin-top: 8px; }
+  .alert .esc { color: var(--critical); font-size: 11px; font-weight: 600; }
+  button {
+    font: inherit; font-size: 12px; padding: 5px 11px; border-radius: 7px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--panel2); color: var(--text);
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #06121f; font-weight: 600; }
+  .empty { color: var(--muted); text-align: center; padding: 30px; }
+
+  .log { font-size: 12px; max-height: 240px; overflow: auto; border-top: 1px solid var(--line); margin-top: 18px; padding-top: 10px; }
+  .log .row { display: flex; gap: 8px; padding: 2px 0; color: var(--muted); }
+  .log .row.critical { color: #fca5a5; } .log .row.warn { color: #fcd34d; }
+  .log .t { color: var(--muted); min-width: 56px; }
+  .conn { font-size: 11px; }
+  .conn.demo { color: #fbbf24; } .conn.live { color: var(--ok); } .conn.down { color: var(--critical); }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1 id="fname">Пансион — пост дежурной</h1>
+    <div class="sub">RuView · бесконтактный мониторинг без камер</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="stats" id="stats"></div>
+  <span class="pill" id="nightpill">—</span>
+  <span class="pill conn" id="conn">подключение…</span>
+</header>
+
+<main>
+  <section>
+    <h2>Комнаты</h2>
+    <div class="rooms" id="rooms"></div>
+  </section>
+  <section>
+    <h2>Активные тревоги</h2>
+    <div class="alerts" id="alerts"></div>
+    <div class="log" id="log"></div>
+  </section>
+</main>
+
+<script>
+"use strict";
+
+// ─── Состояние и режим работы ──────────────────────────────────────
+let STATE = null;
+let MODE = "init"; // live | demo | down
+const CONN = document.getElementById("conn");
+
+function priClass(p){ return "p"+p; }
+function fmtTime(ts){ if(!ts) return "—"; const d=new Date(ts*1000);
+  return d.toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit",second:"2-digit"}); }
+function ago(ts){ if(!ts) return ""; const s=Math.max(0,Math.floor(Date.now()/1000-ts));
+  if(s<60) return s+" с назад"; const m=Math.floor(s/60); if(m<60) return m+" мин назад";
+  return Math.floor(m/60)+" ч назад"; }
+
+// ─── Рендер ────────────────────────────────────────────────────────
+function render(){
+  if(!STATE) return;
+  document.getElementById("fname").textContent = STATE.facility.name + " — пост дежурной";
+
+  const nm = STATE.facility.night_mode;
+  const np = document.getElementById("nightpill");
+  np.className = "pill " + (nm ? "night" : "day");
+  np.textContent = nm ? "🌙 Ночной режим" : "☀ Дневной режим";
+
+  const s = STATE.stats;
+  document.getElementById("stats").innerHTML =
+    stat(s.alerts_critical,"критич.","crit") + stat(s.alerts_high,"высоких","high") +
+    stat(s.rooms_occupied+"/"+s.rooms_total,"заняты","") + stat(s.nodes_offline,"offline","");
+
+  renderRooms();
+  renderAlerts();
+  renderLog();
+}
+function stat(v,l,c){ return `<div class="stat ${c}"><b>${v}</b><span>${l}</span></div>`; }
+
+// Карта: room_id → высший приоритет активной тревоги (для подсветки).
+function roomAlertLevel(){
+  const map = {};
+  for(const a of STATE.alerts){ if(a.status==="resolved") continue;
+    map[a.room_id] = Math.max(map[a.room_id]||0, a.priority); }
+  return map;
+}
+
+function renderRooms(){
+  const lvl = roomAlertLevel();
+  const el = document.getElementById("rooms");
+  el.innerHTML = STATE.rooms.map(r=>{
+    const st = r.state || {};
+    const res = r.resident;
+    let cls = "room";
+    if(!st.online) cls += " offline";
+    const L = lvl[r.room.id];
+    if(L>=4) cls += " alert-critical"; else if(L===3) cls += " alert-high"; else if(L===2) cls += " alert-medium";
+
+    const badges = [];
+    if(res){
+      if(res.dementia) badges.push('<span class="badge dem">деменция</span>');
+      if(res.bedridden) badges.push('<span class="badge bed">лежачий</span>');
+      if(res.fall_history) badges.push('<span class="badge">падения</span>');
+    }
+    const tags = [];
+    if(!st.online) tags.push('<span class="tag danger">нет связи</span>');
+    if(st.distress) tags.push('<span class="tag danger">дистресс</span>');
+    if(st.no_movement) tags.push('<span class="tag warn">нет движения</span>');
+    if(st.inactivity_anomaly) tags.push('<span class="tag warn">неактивность</span>');
+    if(st.bathroom_occupied) tags.push('<span class="tag bath">санузел</span>');
+    if(st.sleeping) tags.push('<span class="tag sleep">сон</span>');
+    if(st.room_active) tags.push('<span class="tag act">активность</span>');
+    if(st.presence && tags.length===0) tags.push('<span class="tag">присутствие</span>');
+    if(tags.length===0) tags.push('<span class="tag">тихо</span>');
+
+    const careRu = {independent:"самостоятельный",assisted:"частичный уход",intensive:"интенсивный уход"};
+    const risk = (st.fall_risk||0);
+    const riskHtml = res ? `<div class="risk"><small>Риск падения: ${risk}/100</small>
+        <div class="bar"><i style="width:${risk}%"></i></div></div>` : "";
+
+    return `<div class="${cls}">
+      <div class="badges">${badges.join("")}</div>
+      <div class="rtop"><span class="rname">${r.room.name}</span></div>
+      <div class="wing">${r.room.wing||""}</div>
+      ${res ? `<div class="resident">${res.name}${res.age?", "+res.age+" л.":""}</div>
+               <div class="care">${careRu[res.care_level]||res.care_level}</div>`
+             : `<div class="resident">${r.room.is_common_area?"общая зона":"—"}</div>`}
+      <div class="tags">${tags.join("")}</div>
+      ${riskHtml}
+    </div>`;
+  }).join("");
+}
+
+function renderAlerts(){
+  const el = document.getElementById("alerts");
+  const active = STATE.alerts.filter(a=>a.status!=="resolved");
+  if(active.length===0){ el.innerHTML = '<div class="empty">Активных тревог нет. Всё спокойно.</div>'; return; }
+  el.innerHTML = active.map(a=>{
+    const acked = a.status==="acknowledged";
+    return `<div class="alert ${priClass(a.priority)} ${acked?"ack":""}">
+      <div class="atop"><span class="atitle">${a.title}</span>
+        <span class="plabel">${a.priority_label}</span></div>
+      <div class="ameta">${a.room_name}${a.resident_name?" · "+a.resident_name:""} · ${ago(a.created_at)}
+        ${a.escalated?'<span class="esc"> · ⚠ ЭСКАЛАЦИЯ</span>':""}</div>
+      <div class="amsg">${a.message}</div>
+      ${a.explanation&&a.explanation.length?`<div class="expl">${a.explanation.join("; ")}</div>`:""}
+      <div class="actions">
+        ${acked?'<span class="ameta">✓ принято: '+(a.acknowledged_by||"")+'</span>'
+                : `<button class="primary" onclick="ack('${a.id}')">Принять</button>`}
+        <button onclick="resolveAlert('${a.id}')">Снять</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderLog(){
+  const el = document.getElementById("log");
+  el.innerHTML = (STATE.log||[]).map(r=>
+    `<div class="row ${r.level||""}"><span class="t">${fmtTime(r.ts)}</span><span>${r.text}</span></div>`
+  ).join("");
+}
+
+// ─── Действия (live → API, demo → локально) ────────────────────────
+async function ack(id){
+  if(MODE==="demo"){ DEMO.ack(id); return; }
+  await fetch(`/api/alerts/${id}/ack?by=пост`,{method:"POST"}); await refresh();
+}
+async function resolveAlert(id){
+  if(MODE==="demo"){ DEMO.resolve(id); return; }
+  await fetch(`/api/alerts/${id}/resolve?by=пост`,{method:"POST"}); await refresh();
+}
+window.ack = ack; window.resolveAlert = resolveAlert;
+
+async function refresh(){
+  try{
+    const r = await fetch("/api/state",{cache:"no-store"});
+    if(!r.ok) throw 0;
+    STATE = await r.json(); render(); return true;
+  }catch(e){ return false; }
+}
+
+function setConn(mode){
+  MODE = mode; CONN.className = "conn "+mode;
+  CONN.textContent = mode==="live" ? "● онлайн (RuView)"
+    : mode==="demo" ? "◐ демо-режим (без оборудования)"
+    : "○ нет связи с сервером";
+}
+
+// ─── Подключение: WS → polling → встроенное демо ───────────────────
+function connect(){
+  if(location.protocol==="file:"){ startDemo(); return; }
+  let ok=false;
+  try{
+    const proto = location.protocol==="https:"?"wss":"ws";
+    const ws = new WebSocket(`${proto}://${location.host}/ws`);
+    ws.onmessage = ev=>{
+      const msg = JSON.parse(ev.data);
+      if(msg.type==="snapshot"){ STATE=msg.data; setConn("live"); render(); }
+      else { refresh(); } // инкрементальные события → подтягиваем полный снимок
+      ok=true;
+    };
+    ws.onclose = ()=>{ if(!ok) fallbackPoll(); };
+    ws.onerror = ()=>{ if(!ok) fallbackPoll(); };
+    setTimeout(()=>{ if(!ok) fallbackPoll(); }, 1500);
+  }catch(e){ fallbackPoll(); }
+}
+async function fallbackPoll(){
+  const ok = await refresh();
+  if(ok){ setConn("live"); setInterval(refresh, 4000); }
+  else { startDemo(); }
+}
+
+// ─── Встроенное демо (чистый JS, без бэкенда) ──────────────────────
+const DEMO = (function(){
+  const cfg = {
+    facility:{name:"Пансионат «Тёплый дом»", night_start_hour:22, night_end_hour:7},
+    residents:{
+      r101:{name:"Иванова Мария Петровна",age:84,care_level:"assisted",fall_history:true,fall_risk_threshold:60},
+      r102:{name:"Петров Николай Сергеевич",age:79,care_level:"assisted",dementia:true},
+      r103:{name:"Сидорова Анна Васильевна",age:88,care_level:"intensive",bedridden:true},
+      r104:{name:"Кузнецов Борис Андреевич",age:75,care_level:"independent"}
+    },
+    rooms:[
+      {id:"101",name:"Палата 101",wing:"Корпус А · 1 этаж",node:"room101",res:"r101"},
+      {id:"102",name:"Палата 102",wing:"Корпус А · 1 этаж",node:"room102",res:"r102"},
+      {id:"103",name:"Палата 103",wing:"Корпус А · 1 этаж",node:"room103",res:"r103"},
+      {id:"104",name:"Палата 104",wing:"Корпус Б · 2 этаж",node:"room104",res:"r104"},
+      {id:"hall",name:"Холл / столовая",wing:"Корпус А · 1 этаж",node:"hall1",common:true}
+    ]
+  };
+  const PR={INFO:0,LOW:1,MEDIUM:2,HIGH:3,CRITICAL:4};
+  const PLAB=["Инфо","Низкий","Средний","Высокий","Критический"];
+  const states={}; const alerts={}; let log=[]; let seq=1;
+  cfg.rooms.forEach(r=>states[r.id]={online:true,presence:!r.common,sleeping:false,room_active:false,
+    bathroom_occupied:false,bathroom_since:null,inactivity_anomaly:false,no_movement:false,distress:false,fall_risk:20});
+
+  function isNight(){ const h=new Date().getHours(); return h>=cfg.facility.night_start_hour||h<cfg.facility.night_end_hour; }
+  function resOf(r){ return r.res?cfg.residents[r.res]:null; }
+  function pushLog(text,level){ log.unshift({ts:Date.now()/1000,text,level:level||"info"}); log=log.slice(0,50); }
+  function upsert(room,kind,title,msg,pri,expl){
+    const key=room.id+":"+kind; let a=alerts[key];
+    if(a&&a.status!=="resolved"){ a.message=msg; a.priority=Math.max(a.priority,pri); a.updated_at=Date.now()/1000; return; }
+    a={id:"a"+(seq++),room_id:room.id,room_name:room.name,resident_id:room.res||null,
+       resident_name:resOf(room)?resOf(room).name:null,kind,title,message:msg,priority:pri,
+       priority_label:PLAB[pri],status:"open",created_at:Date.now()/1000,updated_at:Date.now()/1000,
+       escalated:false,explanation:expl||[]};
+    alerts[key]=a;
+    pushLog(`[${PLAB[pri]}] ${title} — ${room.name}`, pri>=3?"critical":"info");
+  }
+  function clear(room,kind){ const a=alerts[room.id+":"+kind]; if(a&&a.status!=="resolved"){ a.status="resolved"; pushLog(`Снято (авто): ${a.title} — ${room.name}`); delete alerts[room.id+":"+kind]; } }
+
+  function event(room){
+    const st=states[room.id], res=resOf(room), night=isNight(), who=res?res.name:room.name;
+    if(room.common){ if(Math.random()<0.1) st.room_active=Math.random()<0.5; return; }
+    const x=Math.random();
+    if(x<0.015){ st.distress=true; upsert(room,"distress","Возможный дистресс",`${who}: возможный дистресс. Срочно проверьте.`,PR.CRITICAL,["Резкое изменение дыхания"]); }
+    else if(x<0.03){ upsert(room,"fall","Падение",`${who}: обнаружено падение. Немедленно направьте персонал.`,PR.CRITICAL,["Резкое падение фазового сигнала"]); }
+    else if(x<0.06){ // выход из кровати
+      let pri=PR.LOW,msg=`${who}: выход из кровати.`;
+      if(res&&res.bedridden){pri=PR.CRITICAL;msg=`${who} (лежачий): выход из кровати. Срочная проверка.`;}
+      else if(night){pri=PR.HIGH;msg=`${who}: ночной выход из кровати. Риск падения.`;}
+      upsert(room,"bed_exit","Выход из кровати",msg,pri,["Переход кровать→пол"]); }
+    else if(x<0.09){ const v=55+Math.floor(Math.random()*40); st.fall_risk=v;
+      const thr=res&&res.fall_risk_threshold?res.fall_risk_threshold:70; const t=res&&res.fall_history?thr-15:thr;
+      if(v>=t){ let p=PR.MEDIUM; if(res&&res.care_level==="intensive")p=PR.HIGH;
+        upsert(room,"fall_risk","Высокий риск падения",`${who}: риск падения ${v}/100 (порог ${t}).`,p,["Неустойчивая походка"]); } }
+    else if(x<0.12){ st.no_movement=true; let p=res&&res.care_level==="intensive"?PR.CRITICAL:PR.HIGH;
+      upsert(room,"no_movement","Нет движения",`${who}: продолжительное отсутствие движения. Проверьте.`,p,["Нет движения при присутствии"]); }
+    else if(x<0.15){ st.inactivity_anomaly=true; let p=res&&res.care_level==="intensive"?PR.CRITICAL:PR.HIGH;
+      upsert(room,"inactivity","Аномальная неактивность",`${who}: необычно долго без активности.`,p,["Отклонение от личной нормы"]); }
+    else if(x<0.19){ st.bathroom_occupied=true; if(!st.bathroom_since)st.bathroom_since=Date.now()/1000; }
+    else if(x<0.23){ st.distress=st.no_movement=st.inactivity_anomaly=st.bathroom_occupied=false; st.bathroom_since=null; st.fall_risk=20;
+      ["distress","no_movement","inactivity","bathroom_long"].forEach(k=>clear(room,k)); }
+    else if(x<0.5){ st.room_active=Math.random()<0.6; st.sleeping=!st.room_active&&night; }
+    else { st.presence=true; }
+  }
+  function tick(){
+    cfg.rooms.forEach(event);
+    // длительный санузел
+    cfg.rooms.forEach(r=>{ const st=states[r.id]; if(st.bathroom_occupied&&st.bathroom_since){
+      const res=resOf(r); const lim=res&&res.care_level==="intensive"?15:20;
+      if((Date.now()/1000-st.bathroom_since)/60>=lim){ let p=res&&res.care_level==="intensive"?PR.CRITICAL:PR.HIGH;
+        upsert(r,"bathroom_long","Долго в санузле",`${res?res.name:r.name}: долго в санузле (лимит ${lim} мин). Проверьте.`,p,["Превышено время в санузле"]); } } });
+    // эскалация
+    const esc={4:2,3:5,2:15,1:60};
+    Object.values(alerts).forEach(a=>{ if(a.status==="open"&&!a.escalated){
+      const lim=esc[a.priority]; if(lim&&(Date.now()/1000-a.created_at)>=lim*60){ a.escalated=true; a.priority=Math.min(a.priority+1,4); a.priority_label=PLAB[a.priority];
+        pushLog(`⚠ Эскалация: ${a.title} — ${a.room_name}`,"critical"); } } });
+    rebuild();
+  }
+  function rebuild(){
+    const rooms=cfg.rooms.map(r=>{ const st=states[r.id], res=resOf(r);
+      return {room:{id:r.id,name:r.name,wing:r.wing,node_id:r.node,is_common_area:!!r.common},
+        resident:res?{id:r.res,name:res.name,care_level:res.care_level,age:res.age,dementia:!!res.dementia,bedridden:!!res.bedridden,fall_history:!!res.fall_history}:null,
+        state:{...st,online:st.online}};});
+    const al=Object.values(alerts).filter(a=>a.status!=="resolved").sort((a,b)=>b.priority-a.priority||a.created_at-b.created_at);
+    const occ=rooms.filter(r=>r.state.presence&&!r.room.is_common_area).length;
+    const total=rooms.filter(r=>!r.room.is_common_area).length;
+    STATE={facility:{name:cfg.facility.name,night_mode:isNight(),night_start_hour:cfg.facility.night_start_hour,night_end_hour:cfg.facility.night_end_hour},
+      server_time:Date.now()/1000,rooms,alerts:al,log,
+      stats:{alerts_total:al.length,alerts_critical:al.filter(a=>a.priority>=4).length,alerts_high:al.filter(a=>a.priority===3).length,rooms_total:total,rooms_occupied:occ,nodes_offline:0}};
+    render();
+  }
+  return {
+    start(){ // стартовый фон
+      cfg.rooms.forEach(r=>{ if(!r.common){ states[r.id].presence=true; if(Math.random()<0.4)states[r.id].sleeping=true; else states[r.id].room_active=true; } });
+      rebuild(); setInterval(tick,1500);
+    },
+    ack(id){ Object.values(alerts).forEach(a=>{if(a.id===id&&a.status!=="resolved"){a.status="acknowledged";a.acknowledged_by="пост";pushLog(`Принято в работу (пост): ${a.title} — ${a.room_name}`);}}); rebuild(); },
+    resolve(id){ Object.entries(alerts).forEach(([k,a])=>{if(a.id===id){a.status="resolved";pushLog(`Снято (пост): ${a.title} — ${a.room_name}`);delete alerts[k];}}); rebuild(); }
+  };
+})();
+function startDemo(){ setConn("demo"); DEMO.start(); }
+
+connect();
+</script>
+</body>
+</html>
