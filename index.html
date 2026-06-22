@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Дом престарелых — пост дежурной</title>
+<title>Alina Care — пост дежурной</title>
 <style>
   :root {
     --bg: #0e1116; --panel: #161b22; --panel2: #1c232d; --line: #2a323d;
@@ -113,8 +113,8 @@
 <body>
 <header>
   <div>
-    <h1 id="fname">Дом престарелых — пост дежурной</h1>
-    <div class="sub">RuView · бесконтактный мониторинг без камер</div>
+    <h1 id="fname">Alina Care — пост дежурной</h1>
+    <div class="sub">Alina Care · бесконтактный мониторинг без камер</div>
   </div>
   <div class="spacer"></div>
   <div class="stats" id="stats"></div>
@@ -329,8 +329,8 @@ async function refresh(){
 
 function setConn(mode){
   MODE = mode; CONN.className = "conn "+mode;
-  CONN.textContent = mode==="live" ? "● онлайн (RuView)"
-    : mode==="demo" ? "◐ демо-режим (без оборудования)"
+  CONN.textContent = mode==="live" ? "● онлайн (Alina Care)"
+    : mode==="demo" ? "◐ режим показа (симуляция без датчика)"
     : "○ нет связи с сервером";
 }
 
